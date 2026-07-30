@@ -1,0 +1,81 @@
+from flask import Flask, render_template, request, redirect, url_for
+import mysql.connector
+
+app = Flask(__name__)
+
+# Configuração da conexão com o MySQL
+def get_db_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",          # Usuário padrão do MySQL
+        password="root",      # COLOQUE AQUI A SENHA DO SEU MYSQL WORKBENCH
+        database="meu_projeto" # Coloque aqui o nome exato do banco que você criou
+    )
+
+# Função para criar a tabela se ela não existir
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            email VARCHAR(255) NOT NULL,
+            telefone VARCHAR(20) NOT NULL,
+            senha VARCHAR(255) NOT NULL
+        )
+    ''')
+    conn.close()
+
+@app.route('/')
+def pagina_login():
+    return render_template('logp.html')
+
+@app.route('/cadastro')
+def pagina_cadastro():
+    return render_template('log2.html')
+
+@app.route('/cadastrar-usuario', methods=['POST'])
+def cadastrar():
+    email = request.form.get('email')
+    telefone = request.form.get('phone')
+    senha = request.form.get('password')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Comando SQL para inserir no MySQL
+    sql = "INSERT INTO usuarios (email, telefone, senha) VALUES (%s, %s, %s)"
+    valores = (email, telefone, senha)
+    
+    cursor.execute(sql, valores)
+    conn.commit()
+    
+    cursor.close()
+    conn.close()
+
+    # Redireciona para a página de login após o cadastro
+    return redirect(url_for('pagina_login'))
+
+# Rota para processar o login (Botão "Entrar")
+@app.route('/login', methods=['POST'])
+def login():
+    telefone = request.form.get('phone')
+    senha = request.form.get('password')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Verifica se existe um usuário com esse telefone e senha
+    cursor.execute("SELECT * FROM usuarios WHERE telefone = %s AND senha = %s", (telefone, senha))
+    usuario = cursor.fetchone()
+    
+    conn.close()
+
+    if usuario:
+        return f"Bem-vindo! Login realizado com sucesso para o telefone {telefone}."
+    else:
+        return "Erro: Telefone ou senha incorretos."
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
